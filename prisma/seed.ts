@@ -16,27 +16,37 @@ async function main() {
         create: [
           {
             name: 'Freelance Design',
-            type: 'FREELANCE',
-            amount: 150000,
-            frequency: 'MONTHLY',
+            kind: 'BUSINESS',
+            category: 'creative',
             currency: 'NGN',
+            virtualAccount: {
+              create: {
+                squadReference: 'seed-squad-ref-001',
+                accountNumber: '9012345678',
+                accountName: 'Tola Adeyemi',
+                bankName: 'Kova Finance',
+                balance: 320000,
+                currency: 'NGN',
+              },
+            },
           },
           {
             name: 'YouTube Channel',
-            type: 'CONTENT',
-            amount: 45000,
-            frequency: 'MONTHLY',
+            kind: 'BUSINESS',
+            category: 'content',
             currency: 'NGN',
+            virtualAccount: {
+              create: {
+                squadReference: 'seed-squad-ref-002',
+                accountNumber: '9087654321',
+                accountName: 'Tola Adeyemi',
+                bankName: 'Kova Finance',
+                balance: 45000,
+                currency: 'NGN',
+              },
+            },
           },
         ],
-      },
-      virtualAccount: {
-        create: {
-          accountNumber: '9012345678',
-          bankName: 'Kova Finance',
-          balance: 320000,
-          currency: 'NGN',
-        },
       },
     },
   })
