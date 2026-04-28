@@ -27,14 +27,18 @@ export async function POST(request: Request) {
     return Response.json({ error: 'Authentication required' }, { status: 401 })
   }
 
-  const body = await request.json()
+  let body: unknown
+  try {
+    body = await request.json()
+  } catch {
+    return Response.json({ error: 'Request body must be valid JSON' }, { status: 400 })
+  }
+
   const parsed = requestSchema.safeParse(body)
   if (!parsed.success) {
     return Response.json({ error: parsed.error.issues[0].message }, { status: 400 })
   }
 
-  // Inline schema so TypeScript can apply contextual typing from GenerationConfig
-  // and correctly narrow SchemaType members (avoids widening to SchemaType union).
   const model = googleAI.getGenerativeModel({
     model: 'gemini-2.0-flash',
     generationConfig: {
@@ -72,8 +76,23 @@ export async function POST(request: Request) {
     systemInstruction: SYSTEM_PROMPT,
   })
 
-  const result = await model.generateContent(parsed.data.rawInput)
-  const { streams } = JSON.parse(result.response.text()) as { streams: ParsedStream[] }
+  let aiResult: Awaited<ReturnType<typeof model.generateContent>>
+  try {
+    aiResult = await model.generateContent(parsed.data.rawInput)
+  } catch {
+    return Response.json({ error: 'AI service unavailable, please try again' }, { status: 503 })
+  }
+
+  let streams: ParsedStream[]
+  try {
+    const data = JSON.parse(aiResult.response.text()) as { streams: ParsedStream[] }
+    streams = data.streams
+  } catch {
+    return Response.json(
+      { error: 'AI returned an unexpected response, please try again' },
+      { status: 502 }
+    )
+  }
 
   return Response.json({ streams })
 }

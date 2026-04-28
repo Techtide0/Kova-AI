@@ -30,7 +30,7 @@ model IncomeStream {
   kind           String          // "BUSINESS" | "SALARY"
   category       String?         // AI-derived, e.g. "retail", "teaching", "employment"
   type           String?         // reserved for future stream sub-typing
-  amount         Float?          // populated later when user sets expectations
+  amount         Decimal?        // populated later when user sets expectations
   frequency      String?         // e.g. "monthly" — populated later
   currency       String          @default("NGN")
   isActive       Boolean         @default(true)
@@ -50,7 +50,7 @@ model VirtualAccount {
   accountNumber  String       @unique
   accountName    String
   bankName       String
-  balance        Float        @default(0)
+  balance        Decimal      @default(0)
   currency       String       @default("NGN")
   createdAt      DateTime     @default(now())
   updatedAt      DateTime     @updatedAt
@@ -64,7 +64,7 @@ model Transaction {
   incomeStreamId   String?
   virtualAccountId String?
   type             TransactionType
-  amount           Float
+  amount           Decimal
   currency         String          @default("NGN")
   description      String?
   status           TxStatus        @default(PENDING)
@@ -81,7 +81,7 @@ model Proposal {
   userId      String
   title       String
   description String
-  amount      Float
+  amount      Decimal
   currency    String         @default("NGN")
   status      ProposalStatus @default(DRAFT)
   aiGenerated Boolean        @default(false)
