@@ -1,26 +1,66 @@
 @import "tailwindcss";
 
+/* Class-based dark mode — toggled by JS, falls back to system preference */
+@custom-variant dark (&:where(.dark, .dark *));
+
+/* ─── Light tokens ─── */
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+  --bg: #ffffff;
+  --bg-subtle: #f8fafc;
+  --bg-muted: #f1f5f9;
+  --fg: #0f172a;
+  --fg-muted: #64748b;
+  --fg-placeholder: #94a3b8;
+  --border: #e2e8f0;
+  --border-strong: #cbd5e1;
+  --accent: #059669;
+  --accent-hover: #047857;
+  --accent-fg: #ffffff;
+  --sidebar-bg: #fafafa;
+  --sidebar-width: 15rem;
+  --header-height: 3.5rem;
+  --danger: #dc2626;
+}
+
+/* ─── Dark tokens ─── */
+.dark {
+  --bg: #0a0a0a;
+  --bg-subtle: #111111;
+  --bg-muted: #1a1a1a;
+  --fg: #f1f5f9;
+  --fg-muted: #94a3b8;
+  --fg-placeholder: #64748b;
+  --border: #1e293b;
+  --border-strong: #334155;
+  --accent: #10b981;
+  --accent-hover: #059669;
+  --accent-fg: #ffffff;
+  --sidebar-bg: #0d0d0d;
 }
 
 @theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
+  --color-background: var(--bg);
+  --color-foreground: var(--fg);
   --font-sans: var(--font-geist-sans);
   --font-mono: var(--font-geist-mono);
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+html {
+  height: 100%;
 }
 
 body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  height: 100%;
+  margin: 0;
+  background: var(--bg);
+  color: var(--fg);
+  font-family: var(--font-geist-sans), system-ui, -apple-system, sans-serif;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
 }
