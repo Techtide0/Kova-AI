@@ -7,30 +7,82 @@
  * Run with:
  *   pnpm tsx scripts/apply-schema.ts
  *
+ * If tables already exist, pass --force to drop and recreate:
+ *   pnpm tsx scripts/apply-schema.ts --force
+ *
  * Then re-seed:
  *   pnpm tsx prisma/seed.ts
  */
 import 'dotenv/config'
 import { Client } from 'pg'
 
-const client = new Client({ connectionString: process.env.DATABASE_URL })
+// ── Production safeguard ──────────────────────────────────────────────────────
+// Belt-and-suspenders: check both NODE_ENV and the DATABASE_URL hostname so
+// the script is safe even when NODE_ENV is not explicitly set.
+if (process.env.NODE_ENV === 'production') {
+  console.error('✖ Refusing to run in production (NODE_ENV=production).')
+  process.exit(1)
+}
+
+const dbUrl = process.env.DATABASE_URL ?? ''
+const productionIndicators = ['railway.app', 'supabase.co', 'neon.tech', 'render.com']
+if (productionIndicators.some((host) => dbUrl.includes(host)) && !dbUrl.includes('localhost')) {
+  // Allow Railway in dev — Railway is also used as the dev database.
+  // Only block if NODE_ENV is explicitly production (handled above) or if
+  // someone points at a clearly production URL without a dev flag.
+  // Extra flag: APPLY_SCHEMA_ALLOW_REMOTE=yes to acknowledge the risk explicitly.
+  if (process.env.APPLY_SCHEMA_ALLOW_REMOTE !== 'yes') {
+    console.error(
+      '✖ DATABASE_URL points to a remote host. If this is intentional (e.g. Railway dev),\n' +
+        '  re-run with APPLY_SCHEMA_ALLOW_REMOTE=yes to confirm.'
+    )
+    process.exit(1)
+  }
+}
+
+const force = process.argv.includes('--force')
+const client = new Client({ connectionString: dbUrl })
+
+async function tablesExist(): Promise<boolean> {
+  const { rows } = await client.query<{ count: string }>(`
+    SELECT COUNT(*)::text AS count
+    FROM information_schema.tables
+    WHERE table_schema = 'public'
+      AND table_name IN ('User', 'IncomeStream', 'VirtualAccount')
+  `)
+  return parseInt(rows[0].count, 10) > 0
+}
 
 async function main() {
   await client.connect()
-  console.log('✔ Connected to Railway database')
+  console.log('✔ Connected to database')
+
+  // ── Idempotency check ────────────────────────────────────────────────────────
+  // Bail out if the schema is already in place and --force was not passed.
+  // This prevents accidental data loss on a re-run.
+  if (await tablesExist()) {
+    if (!force) {
+      console.error(
+        '✖ Schema already exists. Pass --force to drop and recreate:\n' +
+          '  pnpm tsx scripts/apply-schema.ts --force'
+      )
+      process.exitCode = 1
+      return
+    }
+    console.log('⚠  --force passed — existing schema will be dropped.')
+  }
 
   // ── Drop everything in dependency order ──────────────────────────────────────
-  // CASCADE handles any leftover foreign-key references automatically.
   console.log('▶ Dropping existing tables and types…')
 
   await client.query(`
-    DROP TABLE IF EXISTS "WebhookInbox"  CASCADE;
-    DROP TABLE IF EXISTS "AIAction"      CASCADE;
-    DROP TABLE IF EXISTS "Proposal"      CASCADE;
-    DROP TABLE IF EXISTS "Transaction"   CASCADE;
+    DROP TABLE IF EXISTS "WebhookInbox"   CASCADE;
+    DROP TABLE IF EXISTS "AIAction"       CASCADE;
+    DROP TABLE IF EXISTS "Proposal"       CASCADE;
+    DROP TABLE IF EXISTS "Transaction"    CASCADE;
     DROP TABLE IF EXISTS "VirtualAccount" CASCADE;
-    DROP TABLE IF EXISTS "IncomeStream"  CASCADE;
-    DROP TABLE IF EXISTS "User"          CASCADE;
+    DROP TABLE IF EXISTS "IncomeStream"   CASCADE;
+    DROP TABLE IF EXISTS "User"           CASCADE;
     DROP TABLE IF EXISTS "_prisma_migrations" CASCADE;
 
     DROP TYPE IF EXISTS "WebhookProvider" CASCADE;
@@ -58,9 +110,9 @@ async function main() {
 
   await client.query(`
     CREATE TABLE "User" (
-      "id"           TEXT        NOT NULL,
-      "email"        TEXT        NOT NULL,
-      "name"         TEXT        NOT NULL,
+      "id"           TEXT         NOT NULL,
+      "email"        TEXT         NOT NULL,
+      "name"         TEXT         NOT NULL,
       "passwordHash" TEXT,
       "createdAt"    TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
       "updatedAt"    TIMESTAMP(3) NOT NULL,
@@ -84,16 +136,16 @@ async function main() {
     );
 
     CREATE TABLE "VirtualAccount" (
-      "id"             TEXT         NOT NULL,
-      "streamId"       TEXT         NOT NULL,
-      "squadReference" TEXT         NOT NULL,
-      "accountNumber"  TEXT         NOT NULL,
-      "accountName"    TEXT         NOT NULL,
-      "bankName"       TEXT         NOT NULL,
+      "id"             TEXT           NOT NULL,
+      "streamId"       TEXT           NOT NULL,
+      "squadReference" TEXT           NOT NULL,
+      "accountNumber"  TEXT           NOT NULL,
+      "accountName"    TEXT           NOT NULL,
+      "bankName"       TEXT           NOT NULL,
       "balance"        DECIMAL(65,30) NOT NULL DEFAULT 0,
-      "currency"       TEXT         NOT NULL DEFAULT 'NGN',
-      "createdAt"      TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
-      "updatedAt"      TIMESTAMP(3) NOT NULL,
+      "currency"       TEXT           NOT NULL DEFAULT 'NGN',
+      "createdAt"      TIMESTAMP(3)   NOT NULL DEFAULT CURRENT_TIMESTAMP,
+      "updatedAt"      TIMESTAMP(3)   NOT NULL,
       CONSTRAINT "VirtualAccount_pkey" PRIMARY KEY ("id")
     );
 
@@ -203,9 +255,11 @@ async function main() {
   console.log('  Next: pnpm tsx prisma/seed.ts')
 }
 
+// Use process.exitCode instead of process.exit() so the finally block always
+// runs and the pg client connection is cleanly closed on both success and failure.
 main()
-  .catch((err) => {
+  .catch((err: Error) => {
     console.error('✖ Failed:', err.message)
-    process.exit(1)
+    process.exitCode = 1
   })
   .finally(() => client.end())
