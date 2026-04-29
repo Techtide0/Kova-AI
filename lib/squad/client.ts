@@ -13,6 +13,8 @@ const SQUAD_BASE_URL =
     ? 'https://api-d.squadco.com'
     : 'https://sandbox-api-d.squadco.com'
 
+const IS_PROD = process.env.NODE_ENV === 'production'
+
 // ── Error ────────────────────────────────────────────────────────────────────
 
 export class SquadError extends Error {
@@ -25,14 +27,36 @@ export class SquadError extends Error {
   }
 }
 
+// ── PII scrubber for dev logs ─────────────────────────────────────────────────
+// Removes fields that could contain personal data before printing to stdout.
+const PII_FIELDS = new Set([
+  'email',
+  'first_name',
+  'last_name',
+  'mobile_num',
+  'dob',
+  'address',
+  'bvn',
+])
+
+function redact(body: unknown): unknown {
+  if (!body || typeof body !== 'object') return body
+  return Object.fromEntries(
+    Object.entries(body as Record<string, unknown>).map(([k, v]) => [
+      k,
+      PII_FIELDS.has(k) ? '[redacted]' : v,
+    ])
+  )
+}
+
 // ── Internal request helper ───────────────────────────────────────────────────
 
 async function request<T>(method: 'POST' | 'GET', path: string, body?: unknown): Promise<T> {
   const apiKey = process.env.SQUAD_SECRET_KEY
   if (!apiKey) throw new Error('SQUAD_SECRET_KEY environment variable is not set')
 
-  if (process.env.NODE_ENV !== 'production') {
-    console.log(`[squad] ${method} ${path}`, body ? JSON.stringify(body, null, 2) : '')
+  if (!IS_PROD) {
+    console.log(`[squad] ${method} ${path}`, body ? JSON.stringify(redact(body), null, 2) : '')
   }
 
   const response = await fetch(`${SQUAD_BASE_URL}${path}`, {
@@ -47,7 +71,8 @@ async function request<T>(method: 'POST' | 'GET', path: string, body?: unknown):
   const json: SquadApiResponse<T> = await response.json()
 
   if (!response.ok || !json.success) {
-    console.error('[squad] API error response:', JSON.stringify(json, null, 2))
+    // Log status and message only — never log the full response body in case it echoes PII.
+    console.error(`[squad] ${response.status} error on ${method} ${path}: ${json.message}`)
     throw new SquadError(json.message ?? 'Squad API error', response.status)
   }
 
@@ -56,16 +81,13 @@ async function request<T>(method: 'POST' | 'GET', path: string, body?: unknown):
 
 // ── Public API ────────────────────────────────────────────────────────────────
 
-/**
- * Provisions a dedicated virtual NUBAN for a user's income stream.
- * Call this whenever a new user signs up or adds an income stream.
- */
 export async function createVirtualAccount(
   params: CreateVirtualAccountParams
 ): Promise<VirtualAccountResult> {
-  // Mock mode: bypass Squad API when sandbox limit is hit or in unit tests.
-  // Set SQUAD_MOCK=true in .env to enable. Never set this in production.
+  // Mock mode: bypass Squad API when sandbox limit is hit or during local testing.
+  // Blocked in production so this can never be accidentally enabled on live data.
   if (process.env.SQUAD_MOCK === 'true') {
+    if (IS_PROD) throw new Error('SQUAD_MOCK must not be enabled in production')
     const suffix = params.customerIdentifier.slice(-6).replace(/\D/g, '').padStart(6, '0')
     return {
       accountNumber: `900${suffix}0001`,
@@ -101,10 +123,6 @@ export async function createVirtualAccount(
   }
 }
 
-/**
- * Generates a hosted checkout URL the user can share with their customers.
- * Used for "Request Payment" and invoice flows.
- */
 export async function generatePaymentLink(
   params: GeneratePaymentLinkParams
 ): Promise<PaymentLinkResult> {
@@ -128,10 +146,6 @@ export async function generatePaymentLink(
   }
 }
 
-/**
- * Moves money out of a virtual account to any Nigerian bank account.
- * Called when a user approves an AI-generated savings or tax proposal.
- */
 export async function executeTransfer(params: ExecuteTransferParams): Promise<TransferResult> {
   const data = await request<{
     transaction_ref: string
