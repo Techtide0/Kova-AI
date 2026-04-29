@@ -31,6 +31,10 @@ async function request<T>(method: 'POST' | 'GET', path: string, body?: unknown):
   const apiKey = process.env.SQUAD_SECRET_KEY
   if (!apiKey) throw new Error('SQUAD_SECRET_KEY environment variable is not set')
 
+  if (process.env.NODE_ENV !== 'production') {
+    console.log(`[squad] ${method} ${path}`, body ? JSON.stringify(body, null, 2) : '')
+  }
+
   const response = await fetch(`${SQUAD_BASE_URL}${path}`, {
     method,
     headers: {
@@ -43,6 +47,7 @@ async function request<T>(method: 'POST' | 'GET', path: string, body?: unknown):
   const json: SquadApiResponse<T> = await response.json()
 
   if (!response.ok || !json.success) {
+    console.error('[squad] API error response:', JSON.stringify(json, null, 2))
     throw new SquadError(json.message ?? 'Squad API error', response.status)
   }
 
@@ -58,6 +63,18 @@ async function request<T>(method: 'POST' | 'GET', path: string, body?: unknown):
 export async function createVirtualAccount(
   params: CreateVirtualAccountParams
 ): Promise<VirtualAccountResult> {
+  // Mock mode: bypass Squad API when sandbox limit is hit or in unit tests.
+  // Set SQUAD_MOCK=true in .env to enable. Never set this in production.
+  if (process.env.SQUAD_MOCK === 'true') {
+    const suffix = params.customerIdentifier.slice(-6).replace(/\D/g, '').padStart(6, '0')
+    return {
+      accountNumber: `900${suffix}0001`,
+      accountName: `${params.firstName} ${params.lastName}`,
+      bankName: 'GTBank (Mock)',
+      squadReference: `mock-${params.customerIdentifier}`,
+    }
+  }
+
   const data = await request<{
     virtual_account_number: string
     beneficiary_account: string
@@ -68,6 +85,10 @@ export async function createVirtualAccount(
     first_name: params.firstName,
     last_name: params.lastName,
     mobile_num: params.mobileNumber,
+    dob: params.dob,
+    address: params.address,
+    gender: params.gender,
+    beneficiary_account: params.beneficiaryAccount,
     email: params.email,
     bvn: params.bvn,
   })

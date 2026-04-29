@@ -70,9 +70,14 @@ export async function POST(request: Request) {
           customerIdentifier: `${userId}-${stream.name.toLowerCase().replace(/\s+/g, '-')}`,
           firstName,
           lastName,
-          // mobileNumber is required by Squad but not captured at signup.
-          // In production this should come from the user's profile.
+          // mobileNumber, dob, address, gender are required by Squad but not captured at signup.
+          // In production these must come from the user's profile.
           mobileNumber: '08000000000',
+          dob: '01/01/1990',
+          address: '1 Kova Street, Lagos',
+          gender: '1',
+          beneficiaryAccount: '0123456789',
+          bvn: '22222222222',
           email: userEmail,
         })
         prepared.push({ input: stream, squadAccount })
@@ -93,53 +98,57 @@ export async function POST(request: Request) {
   // Phase 2 — All Squad calls succeeded. Write everything to the database atomically.
   // If this transaction rolls back, the Squad accounts are orphaned — acceptable for
   // sandbox since Squad sandbox has no cost per account.
-  const createdStreams = await prisma.$transaction(async (tx) => {
-    const results: CreatedStream[] = []
+  // maxWait/timeout are raised above Prisma's 2s/5s defaults to handle Railway's latency.
+  const createdStreams = await prisma.$transaction(
+    async (tx) => {
+      const results: CreatedStream[] = []
 
-    for (const { input, squadAccount } of prepared) {
-      const incomeStream = await tx.incomeStream.create({
-        data: {
-          userId,
-          name: input.name,
-          kind: input.kind,
-          category: input.category,
-        },
-      })
-
-      if (squadAccount) {
-        await tx.virtualAccount.create({
+      for (const { input, squadAccount } of prepared) {
+        const incomeStream = await tx.incomeStream.create({
           data: {
-            streamId: incomeStream.id,
-            squadReference: squadAccount.squadReference,
-            accountNumber: squadAccount.accountNumber,
-            accountName: squadAccount.accountName,
-            bankName: squadAccount.bankName,
+            userId,
+            name: input.name,
+            kind: input.kind,
+            category: input.category,
           },
         })
 
-        results.push({
-          id: incomeStream.id,
-          name: incomeStream.name,
-          kind: input.kind,
-          category: input.category,
-          virtualAccount: {
-            accountNumber: squadAccount.accountNumber,
-            accountName: squadAccount.accountName,
-            bankName: squadAccount.bankName,
-          },
-        })
-      } else {
-        results.push({
-          id: incomeStream.id,
-          name: incomeStream.name,
-          kind: input.kind,
-          category: input.category,
-        })
+        if (squadAccount) {
+          await tx.virtualAccount.create({
+            data: {
+              streamId: incomeStream.id,
+              squadReference: squadAccount.squadReference,
+              accountNumber: squadAccount.accountNumber,
+              accountName: squadAccount.accountName,
+              bankName: squadAccount.bankName,
+            },
+          })
+
+          results.push({
+            id: incomeStream.id,
+            name: incomeStream.name,
+            kind: input.kind,
+            category: input.category,
+            virtualAccount: {
+              accountNumber: squadAccount.accountNumber,
+              accountName: squadAccount.accountName,
+              bankName: squadAccount.bankName,
+            },
+          })
+        } else {
+          results.push({
+            id: incomeStream.id,
+            name: incomeStream.name,
+            kind: input.kind,
+            category: input.category,
+          })
+        }
       }
-    }
 
-    return results
-  })
+      return results
+    },
+    { maxWait: 10000, timeout: 20000 }
+  )
 
   return Response.json({ streams: createdStreams }, { status: 201 })
 }

@@ -5,6 +5,10 @@ export interface CreateVirtualAccountParams {
   firstName: string
   lastName: string
   mobileNumber: string
+  dob: string // DD/MM/YYYY — required by Squad; collect from profile in production
+  address: string // required by Squad; collect from profile in production
+  gender: '1' | '2' // '1' = Male, '2' = Female
+  beneficiaryAccount: string // settlement bank account NUBAN (10 digits)
   email: string
   bvn?: string
 }

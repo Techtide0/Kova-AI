@@ -20,6 +20,11 @@ async function main() {
     firstName: 'Tola',
     lastName: 'Adeyemi',
     mobileNumber: '08012345678',
+    dob: '01/01/1990',
+    address: '1 Kova Street, Lagos',
+    gender: '1',
+    beneficiaryAccount: '0123456789',
+    bvn: '22222222222',
     email: 'tola@kova.ai',
   })
 

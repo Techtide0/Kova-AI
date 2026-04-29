@@ -1,6 +1,5 @@
 import { auth } from '@/auth'
-import { googleAI } from '@/lib/google-ai'
-import { SchemaType } from '@google/generative-ai'
+import { anthropic } from '@/lib/anthropic'
 import type { ParsedStream } from '@/lib/onboarding/types'
 import { z } from 'zod'
 
@@ -39,59 +38,59 @@ export async function POST(request: Request) {
     return Response.json({ error: parsed.error.issues[0].message }, { status: 400 })
   }
 
-  const model = googleAI.getGenerativeModel({
-    model: 'gemini-2.0-flash',
-    generationConfig: {
-      responseMimeType: 'application/json',
-      responseSchema: {
-        type: SchemaType.OBJECT,
-        properties: {
-          streams: {
-            type: SchemaType.ARRAY,
-            items: {
-              type: SchemaType.OBJECT,
-              properties: {
-                name: {
-                  type: SchemaType.STRING,
-                  description: 'Short, human-friendly stream name, e.g. "Ankara Sales"',
-                },
-                kind: {
-                  type: SchemaType.STRING,
-                  format: 'enum' as const,
-                  enum: ['BUSINESS', 'SALARY'],
-                  description: 'SALARY for employment income, BUSINESS for everything else',
-                },
-                category: {
-                  type: SchemaType.STRING,
-                  description: 'Single lowercase word, e.g. "retail", "tutoring", "employment"',
-                },
-              },
-              required: ['name', 'kind', 'category'],
-            },
-          },
-        },
-        required: ['streams'],
-      },
-    },
-    systemInstruction: SYSTEM_PROMPT,
-  })
-
-  let aiResult: Awaited<ReturnType<typeof model.generateContent>>
-  try {
-    aiResult = await model.generateContent(parsed.data.rawInput)
-  } catch {
-    return Response.json({ error: 'AI service unavailable, please try again' }, { status: 503 })
-  }
-
   let streams: ParsedStream[]
   try {
-    const data = JSON.parse(aiResult.response.text()) as { streams: ParsedStream[] }
-    streams = data.streams
-  } catch {
-    return Response.json(
-      { error: 'AI returned an unexpected response, please try again' },
-      { status: 502 }
-    )
+    const response = await anthropic.messages.create({
+      model: 'claude-haiku-4-5-20251001',
+      max_tokens: 1024,
+      system: SYSTEM_PROMPT,
+      tools: [
+        {
+          name: 'parse_income_streams',
+          description: 'Parse the user input into structured income streams',
+          input_schema: {
+            type: 'object' as const,
+            properties: {
+              streams: {
+                type: 'array',
+                items: {
+                  type: 'object',
+                  properties: {
+                    name: {
+                      type: 'string',
+                      description: 'Short, human-friendly stream name, e.g. "Ankara Sales"',
+                    },
+                    kind: {
+                      type: 'string',
+                      enum: ['BUSINESS', 'SALARY'],
+                      description: 'SALARY for employment income, BUSINESS for everything else',
+                    },
+                    category: {
+                      type: 'string',
+                      description: 'Single lowercase word, e.g. "retail", "tutoring", "employment"',
+                    },
+                  },
+                  required: ['name', 'kind', 'category'],
+                },
+              },
+            },
+            required: ['streams'],
+          },
+        },
+      ],
+      tool_choice: { type: 'tool', name: 'parse_income_streams' },
+      messages: [{ role: 'user', content: parsed.data.rawInput }],
+    })
+
+    const toolUse = response.content.find((block) => block.type === 'tool_use')
+    if (!toolUse || toolUse.type !== 'tool_use') {
+      throw new Error('Model did not call the parse tool')
+    }
+
+    streams = (toolUse.input as { streams: ParsedStream[] }).streams
+  } catch (err) {
+    console.error('[parse-streams] Anthropic error:', err)
+    return Response.json({ error: 'AI service unavailable, please try again' }, { status: 503 })
   }
 
   return Response.json({ streams })
