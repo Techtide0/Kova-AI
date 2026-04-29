@@ -3,6 +3,7 @@ import Credentials from 'next-auth/providers/credentials'
 import { compare } from 'bcryptjs'
 import { z } from 'zod'
 import { prisma } from '@/lib/prisma'
+import { authConfig } from './auth.config'
 
 const credentialsSchema = z.object({
   email: z.string().email(),
@@ -10,6 +11,7 @@ const credentialsSchema = z.object({
 })
 
 export const { handlers, signIn, signOut, auth } = NextAuth({
+  ...authConfig,
   providers: [
     Credentials({
       async authorize(credentials) {
@@ -30,23 +32,4 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
       },
     }),
   ],
-
-  session: { strategy: 'jwt' },
-
-  pages: {
-    signIn: '/login',
-  },
-
-  callbacks: {
-    jwt({ token, user }) {
-      // On sign-in, persist the user id into the token
-      if (user) token.id = user.id
-      return token
-    },
-    session({ session, token }) {
-      // Expose the user id on the client-side session object
-      if (token.id) session.user.id = token.id as string
-      return session
-    },
-  },
 })

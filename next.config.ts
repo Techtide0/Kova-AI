@@ -1,7 +1,8 @@
-import type { NextConfig } from "next";
+import type { NextConfig } from 'next'
 
 const nextConfig: NextConfig = {
-  /* config options here */
-};
+  // Allow HMR from local network IPs (e.g. when accessing from another device on the same network)
+  allowedDevOrigins: ['196.220.253.149'],
+}
 
-export default nextConfig;
+export default nextConfig
