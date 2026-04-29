@@ -1,0 +1,157 @@
+generator client {
+  provider = "prisma-client"
+  output   = "../app/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+model User {
+  id           String        @id @default(cuid())
+  email        String        @unique
+  name         String
+  passwordHash String?
+  createdAt    DateTime      @default(now())
+  updatedAt    DateTime      @updatedAt
+  incomeStreams IncomeStream[]
+  transactions Transaction[]
+  proposals    Proposal[]
+  aiActions    AIAction[]
+}
+
+// Each row is one income source the user told us about during onboarding.
+// kind distinguishes a personal business (needs a virtual account) from a
+// salary (lives in an external bank, tracked via Mono later).
+model IncomeStream {
+  id             String          @id @default(cuid())
+  userId         String
+  name           String
+  kind           String          // "BUSINESS" | "SALARY"
+  category       String?         // AI-derived, e.g. "retail", "teaching", "employment"
+  type           String?         // reserved for future stream sub-typing
+  amount         Decimal?        // populated later when user sets expectations
+  frequency      String?         // e.g. "monthly" — populated later
+  currency       String          @default("NGN")
+  isActive       Boolean         @default(true)
+  createdAt      DateTime        @default(now())
+  updatedAt      DateTime        @updatedAt
+  user           User            @relation(fields: [userId], references: [id], onDelete: Cascade)
+  virtualAccount VirtualAccount? // only BUSINESS streams have this
+  transactions   Transaction[]
+}
+
+// One Squad NUBAN per BUSINESS income stream.
+// Salary streams have no virtual account — money arrives at the user's real bank.
+model VirtualAccount {
+  id             String       @id @default(cuid())
+  streamId       String       @unique
+  squadReference String       @unique  // Squad's internal account id
+  accountNumber  String       @unique
+  accountName    String
+  bankName       String
+  balance        Decimal      @default(0)
+  currency       String       @default("NGN")
+  createdAt      DateTime     @default(now())
+  updatedAt      DateTime     @updatedAt
+  stream         IncomeStream @relation(fields: [streamId], references: [id], onDelete: Cascade)
+  transactions   Transaction[]
+}
+
+model Transaction {
+  id               String          @id @default(cuid())
+  userId           String
+  incomeStreamId   String?
+  virtualAccountId String?
+  type             TransactionType
+  amount           Decimal
+  currency         String          @default("NGN")
+  description      String?
+  status           TxStatus        @default(PENDING)
+  metadata         Json?
+  createdAt        DateTime        @default(now())
+  updatedAt        DateTime        @updatedAt
+  user             User            @relation(fields: [userId], references: [id], onDelete: Cascade)
+  incomeStream     IncomeStream?   @relation(fields: [incomeStreamId], references: [id])
+  virtualAccount   VirtualAccount? @relation(fields: [virtualAccountId], references: [id])
+}
+
+model Proposal {
+  id          String         @id @default(cuid())
+  userId      String
+  title       String
+  description String
+  amount      Decimal
+  currency    String         @default("NGN")
+  status      ProposalStatus @default(DRAFT)
+  aiGenerated Boolean        @default(false)
+  createdAt   DateTime       @default(now())
+  updatedAt   DateTime       @updatedAt
+  user        User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+  aiActions   AIAction[]
+}
+
+model AIAction {
+  id         String       @id @default(cuid())
+  userId     String
+  proposalId String?
+  type       AIActionType
+  prompt     String
+  result     Json?
+  status     AIStatus     @default(PENDING)
+  createdAt  DateTime     @default(now())
+  updatedAt  DateTime     @updatedAt
+  user       User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  proposal   Proposal?    @relation(fields: [proposalId], references: [id])
+}
+
+enum TransactionType {
+  CREDIT
+  DEBIT
+  TRANSFER
+}
+
+enum TxStatus {
+  PENDING
+  COMPLETED
+  FAILED
+  REVERSED
+}
+
+enum ProposalStatus {
+  DRAFT
+  SENT
+  ACCEPTED
+  REJECTED
+}
+
+enum AIActionType {
+  GENERATE_PROPOSAL
+  ANALYZE_INCOME
+  SUGGEST_SAVINGS
+  FORECAST
+  SUMMARIZE
+}
+
+enum AIStatus {
+  PENDING
+  PROCESSING
+  COMPLETED
+  FAILED
+}
+
+// Stores raw inbound webhook events before the Week 2 background worker processes them.
+// The unique constraint on eventId is the idempotency wall — Squad's retry logic can
+// send the same event twice; the second insert fails and we return 200 without double-processing.
+model WebhookInbox {
+  id        String          @id @default(cuid())
+  eventId   String          @unique   // Squad's transactionRef — dedup key
+  provider  WebhookProvider
+  payload   Json
+  processed Boolean         @default(false)  // Week 2 worker flips this to true after handling
+  createdAt DateTime        @default(now())
+}
+
+enum WebhookProvider {
+  SQUAD
+}
