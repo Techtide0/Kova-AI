@@ -4,6 +4,7 @@ import { useState } from 'react'
 import { signIn } from 'next-auth/react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
+import api, { ApiError } from '@/lib/api'
 
 export default function RegisterPage() {
   const router = useRouter()
@@ -16,31 +17,20 @@ export default function RegisterPage() {
     setLoading(true)
 
     const form = new FormData(e.currentTarget)
-    const payload = {
-      name: form.get('name'),
-      email: form.get('email'),
-      password: form.get('password'),
-    }
+    const name = form.get('name') as string
+    const email = form.get('email') as string
+    const password = form.get('password') as string
 
-    const res = await fetch('/api/auth/register', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(payload),
-    })
-
-    if (!res.ok) {
-      const { error: message } = await res.json()
-      setError(message ?? 'Something went wrong. Please try again.')
+    try {
+      await api.auth.register({ name, email, password })
+    } catch (err) {
+      setError(err instanceof ApiError ? err.message : 'Something went wrong. Please try again.')
       setLoading(false)
       return
     }
 
     // Auto sign-in after successful registration
-    await signIn('credentials', {
-      email: payload.email,
-      password: payload.password,
-      redirect: false,
-    })
+    await signIn('credentials', { email, password, redirect: false })
 
     router.push('/dashboard')
   }
