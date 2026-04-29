@@ -43,7 +43,11 @@ export default async function SettingsPage() {
           label="Full name"
           value={session?.user?.name ?? '—'}
           action={
-            <button className="rounded-lg border border-[var(--border)] px-3 py-1.5 text-xs font-medium text-[var(--fg-muted)] transition-colors hover:border-[var(--border-strong)] hover:text-[var(--fg)]">
+            <button
+              disabled
+              title="Coming soon"
+              className="rounded-lg border border-[var(--border)] px-3 py-1.5 text-xs font-medium text-[var(--fg-muted)] opacity-40 cursor-not-allowed"
+            >
               Edit
             </button>
           }
@@ -56,7 +60,11 @@ export default async function SettingsPage() {
           label="Password"
           value="••••••••••"
           action={
-            <button className="rounded-lg border border-[var(--border)] px-3 py-1.5 text-xs font-medium text-[var(--fg-muted)] transition-colors hover:border-[var(--border-strong)] hover:text-[var(--fg)]">
+            <button
+              disabled
+              title="Coming soon"
+              className="rounded-lg border border-[var(--border)] px-3 py-1.5 text-xs font-medium text-[var(--fg-muted)] opacity-40 cursor-not-allowed"
+            >
               Change
             </button>
           }
@@ -68,7 +76,11 @@ export default async function SettingsPage() {
           label="Manage streams"
           value="Add, rename, or remove your income sources"
           action={
-            <button className="rounded-lg border border-[var(--border)] px-3 py-1.5 text-xs font-medium text-[var(--fg-muted)] transition-colors hover:border-[var(--border-strong)] hover:text-[var(--fg)]">
+            <button
+              disabled
+              title="Coming soon"
+              className="rounded-lg border border-[var(--border)] px-3 py-1.5 text-xs font-medium text-[var(--fg-muted)] opacity-40 cursor-not-allowed"
+            >
               Manage
             </button>
           }
@@ -77,7 +89,11 @@ export default async function SettingsPage() {
           label="Virtual accounts"
           value="View your Squad NUBANs for each business stream"
           action={
-            <button className="rounded-lg border border-[var(--border)] px-3 py-1.5 text-xs font-medium text-[var(--fg-muted)] transition-colors hover:border-[var(--border-strong)] hover:text-[var(--fg)]">
+            <button
+              disabled
+              title="Coming soon"
+              className="rounded-lg border border-[var(--border)] px-3 py-1.5 text-xs font-medium text-[var(--fg-muted)] opacity-40 cursor-not-allowed"
+            >
               View
             </button>
           }

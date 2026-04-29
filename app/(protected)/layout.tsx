@@ -8,14 +8,14 @@ export default async function ProtectedLayout({ children }: { children: React.Re
   const session = await auth()
   if (!session) redirect('/login')
 
-  const initials = session.user?.name
-    ? session.user.name
-        .split(' ')
-        .map((n) => n[0])
-        .join('')
-        .slice(0, 2)
-        .toUpperCase()
-    : '?'
+  const initials =
+    (session.user?.name || '')
+      .split(' ')
+      .filter(Boolean)
+      .map((n) => n[0])
+      .join('')
+      .slice(0, 2)
+      .toUpperCase() || '?'
 
   return (
     <div className="flex h-full flex-col bg-[var(--bg)]">
@@ -27,7 +27,7 @@ export default async function ProtectedLayout({ children }: { children: React.Re
         <div className="flex items-center gap-2">
           <ThemeToggle />
           <div
-            aria-label={session.user?.name ?? 'User'}
+            aria-label={session.user?.name || 'User'}
             className="flex h-8 w-8 items-center justify-center rounded-full bg-[var(--accent)] text-xs font-semibold text-[var(--accent-fg)]"
           >
             {initials}
@@ -52,12 +52,12 @@ export default async function ProtectedLayout({ children }: { children: React.Re
           {/* User section at the bottom */}
           <div className="mt-auto border-t border-[var(--border)] p-3">
             <div className="flex items-center gap-3 rounded-lg px-3 py-2">
-              <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-[var(--accent)] text-[11px] font-semibold text-[var(--accent-fg)]">
+              <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-[var(--accent)] text-xs font-semibold text-[var(--accent-fg)]">
                 {initials}
               </div>
               <div className="min-w-0 flex-1">
                 <p className="truncate text-xs font-medium text-[var(--fg)]">{session.user?.name}</p>
-                <p className="truncate text-[11px] text-[var(--fg-muted)]">{session.user?.email}</p>
+                <p className="truncate text-xs text-[var(--fg-muted)]">{session.user?.email}</p>
               </div>
               <ThemeToggle />
             </div>

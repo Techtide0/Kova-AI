@@ -23,7 +23,7 @@ export default function OnboardingPage() {
                 >
                   {i + 1}
                 </div>
-                <span className="text-[10px] text-[var(--fg-muted)] whitespace-nowrap">{label}</span>
+                <span className="text-xs text-[var(--fg-muted)] whitespace-nowrap">{label}</span>
               </div>
               {i < steps.length - 1 && (
                 <div className="h-px flex-1 mx-3 bg-[var(--border)]" />
@@ -46,10 +46,11 @@ export default function OnboardingPage() {
 
           {/* Placeholder input */}
           <div className="space-y-1.5">
-            <label className="block text-sm font-medium text-[var(--fg)]">
+            <label htmlFor="income-sources" className="block text-sm font-medium text-[var(--fg)]">
               Your income sources
             </label>
             <textarea
+              id="income-sources"
               rows={5}
               placeholder="e.g. I sell ankara fabrics online, I tutor secondary school maths on weekends, and I receive a monthly salary from my bank job."
               className="block w-full resize-none rounded-xl border border-[var(--border)] bg-[var(--bg-subtle)] px-4 py-3 text-sm text-[var(--fg)] placeholder-[var(--fg-placeholder)] transition-colors focus:border-[var(--accent)] focus:outline-none focus:ring-1 focus:ring-[var(--accent)]"

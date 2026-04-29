@@ -3,7 +3,8 @@
 import { useEffect, useState } from 'react'
 
 export function ThemeToggle() {
-  const [dark, setDark] = useState(false)
+  // null = not yet mounted; avoids rendering wrong icon before the DOM is read
+  const [dark, setDark] = useState<boolean | null>(null)
 
   useEffect(() => {
     setDark(document.documentElement.classList.contains('dark'))
@@ -14,6 +15,11 @@ export function ThemeToggle() {
     setDark(next)
     document.documentElement.classList.toggle('dark', next)
     localStorage.setItem('kova-theme', next ? 'dark' : 'light')
+  }
+
+  // Invisible same-sized placeholder until we know the real theme
+  if (dark === null) {
+    return <div className="h-8 w-8" aria-hidden />
   }
 
   return (

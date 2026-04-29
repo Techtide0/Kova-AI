@@ -83,7 +83,7 @@ export function MobileNav() {
             key={item.href}
             href={item.href}
             className={[
-              'flex flex-col items-center gap-1 rounded-lg px-4 py-1.5 text-[10px] font-medium transition-colors',
+              'flex flex-col items-center gap-1 rounded-lg px-4 py-1.5 text-xs font-medium transition-colors',
               active ? 'text-[var(--accent)]' : 'text-[var(--fg-muted)]',
             ].join(' ')}
           >
