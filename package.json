@@ -11,7 +11,10 @@
     "db:generate": "prisma generate",
     "db:migrate": "prisma migrate dev",
     "db:seed": "ts-node --compiler-options '{\"module\":\"CommonJS\"}' prisma/seed.ts",
-    "db:studio": "prisma studio"
+    "db:studio": "prisma studio",
+    "db:apply": "tsx scripts/apply-schema.ts",
+    "test:webhook": "tsx scripts/test-webhook.ts",
+    "test:squad": "tsx scripts/test-squad.ts"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.91.1",
@@ -60,6 +63,7 @@
     "prettier": "^3.8.3",
     "tailwindcss": "^4",
     "ts-node": "^10.9.2",
+    "tsx": "^4.21.0",
     "typescript": "^5"
   }
 }

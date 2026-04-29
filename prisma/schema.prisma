@@ -139,3 +139,19 @@ enum AIStatus {
   COMPLETED
   FAILED
 }
+
+// Stores raw inbound webhook events before the Week 2 background worker processes them.
+// The unique constraint on eventId is the idempotency wall — Squad's retry logic can
+// send the same event twice; the second insert fails and we return 200 without double-processing.
+model WebhookInbox {
+  id        String          @id @default(cuid())
+  eventId   String          @unique   // Squad's transactionRef — dedup key
+  provider  WebhookProvider
+  payload   Json
+  processed Boolean         @default(false)  // Week 2 worker flips this to true after handling
+  createdAt DateTime        @default(now())
+}
+
+enum WebhookProvider {
+  SQUAD
+}
