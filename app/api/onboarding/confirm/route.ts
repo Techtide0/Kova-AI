@@ -56,6 +56,27 @@ export async function POST(request: Request) {
   const userEmail = session.user.email
   const { firstName, lastName } = splitName(session.user.name)
 
+  // These fields are required by Squad but are not yet collected in the signup flow.
+  // In production, they must come from the user's profile — this route must not go
+  // live until profile collection is built (Week 3). The env vars let us override the
+  // sandbox defaults in staging without touching source code.
+  if (process.env.NODE_ENV === 'production') {
+    return Response.json(
+      {
+        error:
+          'Onboarding confirm is not available in production yet — user profile collection required',
+      },
+      { status: 501 }
+    )
+  }
+
+  const sandboxMobile = process.env.SQUAD_SANDBOX_MOBILE ?? '08000000000'
+  const sandboxDob = process.env.SQUAD_SANDBOX_DOB ?? '01/01/1990'
+  const sandboxAddress = process.env.SQUAD_SANDBOX_ADDRESS ?? '1 Kova Street, Lagos'
+  const sandboxGender = (process.env.SQUAD_SANDBOX_GENDER ?? '1') as '1' | '2'
+  const sandboxBeneficiaryAccount = process.env.SQUAD_SANDBOX_BENEFICIARY_ACCOUNT ?? '0123456789'
+  const sandboxBvn = process.env.SQUAD_SANDBOX_BVN ?? '22222222222'
+
   // Phase 1 — Call Squad for every BUSINESS stream before touching the database.
   // If Squad is down or rejects a request, we bail here and nothing is written to DB.
   // This avoids the data-inconsistency risk of external API calls inside a transaction.
@@ -70,14 +91,12 @@ export async function POST(request: Request) {
           customerIdentifier: `${userId}-${stream.name.toLowerCase().replace(/\s+/g, '-')}`,
           firstName,
           lastName,
-          // mobileNumber, dob, address, gender are required by Squad but not captured at signup.
-          // In production these must come from the user's profile.
-          mobileNumber: '08000000000',
-          dob: '01/01/1990',
-          address: '1 Kova Street, Lagos',
-          gender: '1',
-          beneficiaryAccount: '0123456789',
-          bvn: '22222222222',
+          mobileNumber: sandboxMobile,
+          dob: sandboxDob,
+          address: sandboxAddress,
+          gender: sandboxGender,
+          beneficiaryAccount: sandboxBeneficiaryAccount,
+          bvn: sandboxBvn,
           email: userEmail,
         })
         prepared.push({ input: stream, squadAccount })

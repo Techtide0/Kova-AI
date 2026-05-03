@@ -14,7 +14,9 @@
     "db:studio": "prisma studio",
     "db:apply": "tsx scripts/apply-schema.ts",
     "test:webhook": "tsx scripts/test-webhook.ts",
-    "test:squad": "tsx scripts/test-squad.ts"
+    "test:squad": "tsx scripts/test-squad.ts",
+    "worker:dev": "tsx --watch worker/index.ts",
+    "worker:start": "tsx worker/index.ts"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.91.1",
@@ -22,6 +24,8 @@
     "@prisma/adapter-pg": "^7.8.0",
     "@prisma/client": "^7.8.0",
     "bcryptjs": "^3.0.3",
+    "bullmq": "^5.76.5",
+    "ioredis": "^5.10.1",
     "next": "16.2.4",
     "next-auth": "5.0.0-beta.31",
     "pg": "^8.20.0",
