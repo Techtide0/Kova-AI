@@ -58,25 +58,32 @@ export async function categorise(input: CategoriseInput): Promise<CategoriseResu
     }
   }
 
-  const message = await getClient().messages.create({
-    model: 'claude-haiku-4-5-20251001',
-    max_tokens: 256,
-    system: SYSTEM_PROMPT,
-    messages: [
-      {
-        role: 'user',
-        content: JSON.stringify({
-          direction: input.direction,
-          amountNaira: (input.amountKobo / 100).toFixed(2),
-          description: input.description,
-          counterparty: input.counterpartyName ?? 'unknown',
-          stream: input.streamName,
-        }),
-      },
-    ],
-  })
+  let message: Anthropic.Message
+  try {
+    message = await getClient().messages.create({
+      model: 'claude-haiku-4-5-20251001',
+      max_tokens: 256,
+      system: SYSTEM_PROMPT,
+      messages: [
+        {
+          role: 'user',
+          content: JSON.stringify({
+            direction: input.direction,
+            amountNaira: (input.amountKobo / 100).toFixed(2),
+            description: input.description,
+            counterparty: input.counterpartyName ?? 'unknown',
+            stream: input.streamName,
+          }),
+        },
+      ],
+    })
+  } catch (err) {
+    console.error('[categorise] Anthropic API error:', (err as Error).message)
+    return { categoryLabel: 'other', categoryConfidence: 0, aiReasoning: 'AI unavailable' }
+  }
 
-  const text = message.content[0].type === 'text' ? message.content[0].text : ''
+  const firstBlock = message.content.length > 0 ? message.content[0] : null
+  const text = firstBlock?.type === 'text' ? firstBlock.text : ''
 
   try {
     const parsed = JSON.parse(text) as {

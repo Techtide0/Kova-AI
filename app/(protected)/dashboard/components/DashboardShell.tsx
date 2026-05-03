@@ -53,35 +53,62 @@ export function DashboardShell({ userName, streams, initialTransactions, initial
   const [connected, setConnected] = useState(false)
 
   useEffect(() => {
-    const es = new EventSource('/api/stream')
+    let es: EventSource | null = null
+    let retryDelay = 1000
+    let retryTimer: ReturnType<typeof setTimeout> | null = null
+    let unmounted = false
 
-    es.addEventListener('open', () => setConnected(true))
-    es.addEventListener('error', () => setConnected(false))
+    function connect() {
+      es = new EventSource('/api/stream')
 
-    es.onmessage = (event) => {
-      try {
-        const data = JSON.parse(event.data as string) as {
-          kind: string
-          transaction?: Transaction
+      es.addEventListener('open', () => {
+        retryDelay = 1000
+        setConnected(true)
+      })
+
+      es.addEventListener('error', () => {
+        setConnected(false)
+        es?.close()
+        es = null
+        if (!unmounted) {
+          retryTimer = setTimeout(() => {
+            retryDelay = Math.min(retryDelay * 2, 30000)
+            connect()
+          }, retryDelay)
         }
+      })
 
-        if (data.kind === 'transaction.created' && data.transaction) {
-          setTransactions((prev) => [data.transaction!, ...prev])
-          setFeed((prev) => [
-            {
-              id: data.transaction!.id,
-              prompt: `Categorized ${formatNaira(data.transaction!.amount)} inflow into ${data.transaction!.streamName} as ${data.transaction!.categoryLabel ?? 'other'}`,
-              createdAt: data.transaction!.createdAt,
-            },
-            ...prev,
-          ])
+      es.onmessage = (event) => {
+        try {
+          const data = JSON.parse(event.data as string) as {
+            kind: string
+            transaction?: Transaction
+          }
+
+          if (data.kind === 'transaction.created' && data.transaction) {
+            setTransactions((prev) => [data.transaction!, ...prev])
+            setFeed((prev) => [
+              {
+                id: data.transaction!.id,
+                prompt: `Categorized ${formatNaira(data.transaction!.amount)} inflow into ${data.transaction!.streamName} as ${data.transaction!.categoryLabel ?? 'other'}`,
+                createdAt: data.transaction!.createdAt,
+              },
+              ...prev,
+            ])
+          }
+        } catch {
+          // Ignore parse errors (heartbeat comments from SSE)
         }
-      } catch {
-        // Ignore parse errors (heartbeat comments from SSE)
       }
     }
 
-    return () => es.close()
+    connect()
+
+    return () => {
+      unmounted = true
+      if (retryTimer) clearTimeout(retryTimer)
+      es?.close()
+    }
   }, [])
 
   return (

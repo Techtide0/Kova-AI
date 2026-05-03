@@ -30,7 +30,7 @@ const worker = new Worker<InflowJobData>(
     if (job.name === 'processInflow') {
       await processInflow(job.data)
     } else {
-      console.warn(`[worker] Unknown job type: ${job.name}`)
+      throw new Error(`Unknown job type: ${job.name}`)
     }
   },
   { connection }

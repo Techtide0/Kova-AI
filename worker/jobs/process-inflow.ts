@@ -1,5 +1,4 @@
 import { prisma } from '../../lib/prisma'
-import type { PrismaClient } from '../../app/generated/prisma/client'
 import type { InflowJobData } from '../../lib/queue'
 import { categorise } from '../lib/categorise'
 import { publishToUser } from '../lib/publish'
@@ -45,7 +44,12 @@ export async function processInflow({ inboxId, eventId }: InflowJobData): Promis
     return
   }
 
-  const amountKobo = body.amount ?? 0
+  const amountKobo = body.amount
+  if (!amountKobo || amountKobo <= 0) {
+    console.warn(`[processInflow] Invalid or missing amount (${amountKobo}) for event ${eventId}`)
+    await prisma.webhookInbox.update({ where: { id: inboxId }, data: { processed: true } })
+    return
+  }
   const amountNaira = amountKobo / 100
 
   const { categoryLabel, categoryConfidence, aiReasoning } = await categorise({

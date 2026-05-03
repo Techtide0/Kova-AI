@@ -70,12 +70,29 @@ export async function POST(request: Request) {
     )
   }
 
-  const sandboxMobile = process.env.SQUAD_SANDBOX_MOBILE ?? '08000000000'
-  const sandboxDob = process.env.SQUAD_SANDBOX_DOB ?? '01/01/1990'
-  const sandboxAddress = process.env.SQUAD_SANDBOX_ADDRESS ?? '1 Kova Street, Lagos'
-  const sandboxGender = (process.env.SQUAD_SANDBOX_GENDER ?? '1') as '1' | '2'
-  const sandboxBeneficiaryAccount = process.env.SQUAD_SANDBOX_BENEFICIARY_ACCOUNT ?? '0123456789'
-  const sandboxBvn = process.env.SQUAD_SANDBOX_BVN ?? '22222222222'
+  const sandboxMobile = process.env.SQUAD_SANDBOX_MOBILE
+  const sandboxDob = process.env.SQUAD_SANDBOX_DOB
+  const sandboxAddress = process.env.SQUAD_SANDBOX_ADDRESS
+  const rawGender = process.env.SQUAD_SANDBOX_GENDER ?? '1'
+  const sandboxGender: '1' | '2' = rawGender === '2' ? '2' : '1'
+  const sandboxBeneficiaryAccount = process.env.SQUAD_SANDBOX_BENEFICIARY_ACCOUNT
+  const sandboxBvn = process.env.SQUAD_SANDBOX_BVN
+
+  if (
+    !sandboxMobile ||
+    !sandboxDob ||
+    !sandboxAddress ||
+    !sandboxBeneficiaryAccount ||
+    !sandboxBvn
+  ) {
+    return Response.json(
+      {
+        error:
+          'Sandbox Squad env vars are not configured — set SQUAD_SANDBOX_MOBILE, SQUAD_SANDBOX_DOB, SQUAD_SANDBOX_ADDRESS, SQUAD_SANDBOX_BENEFICIARY_ACCOUNT, and SQUAD_SANDBOX_BVN in .env.local',
+      },
+      { status: 503 }
+    )
+  }
 
   // Phase 1 — Call Squad for every BUSINESS stream before touching the database.
   // If Squad is down or rejects a request, we bail here and nothing is written to DB.
