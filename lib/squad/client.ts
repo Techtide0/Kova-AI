@@ -37,6 +37,10 @@ const PII_FIELDS = new Set([
   'dob',
   'address',
   'bvn',
+  'beneficiary_account',
+  'account_number',
+  'account_name',
+  'customer_identifier',
 ])
 
 function redact(body: unknown): unknown {
@@ -71,8 +75,13 @@ async function request<T>(method: 'POST' | 'GET', path: string, body?: unknown):
   const json: SquadApiResponse<T> = await response.json()
 
   if (!response.ok || !json.success) {
-    // Log status and message only — never log the full response body in case it echoes PII.
-    console.error(`[squad] ${response.status} error on ${method} ${path}: ${json.message}`)
+    // In production, Squad error messages may echo PII back (e.g. BVN, account numbers).
+    // Log only the status code; include the message only in non-production where it aids debugging.
+    if (IS_PROD) {
+      console.error(`[squad] ${response.status} error on ${method} ${path}`)
+    } else {
+      console.error(`[squad] ${response.status} error on ${method} ${path}: ${json.message}`)
+    }
     throw new SquadError(json.message ?? 'Squad API error', response.status)
   }
 

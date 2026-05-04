@@ -100,7 +100,7 @@ async function main() {
     CREATE TYPE "TransactionType" AS ENUM ('CREDIT', 'DEBIT', 'TRANSFER');
     CREATE TYPE "TxStatus"        AS ENUM ('PENDING', 'COMPLETED', 'FAILED', 'REVERSED');
     CREATE TYPE "ProposalStatus"  AS ENUM ('DRAFT', 'SENT', 'ACCEPTED', 'REJECTED');
-    CREATE TYPE "AIActionType"    AS ENUM ('GENERATE_PROPOSAL', 'ANALYZE_INCOME', 'SUGGEST_SAVINGS', 'FORECAST', 'SUMMARIZE');
+    CREATE TYPE "AIActionType"    AS ENUM ('GENERATE_PROPOSAL', 'ANALYZE_INCOME', 'SUGGEST_SAVINGS', 'FORECAST', 'SUMMARIZE', 'CATEGORIZE_TRANSACTION');
     CREATE TYPE "AIStatus"        AS ENUM ('PENDING', 'PROCESSING', 'COMPLETED', 'FAILED');
     CREATE TYPE "WebhookProvider" AS ENUM ('SQUAD');
   `)
@@ -150,18 +150,23 @@ async function main() {
     );
 
     CREATE TABLE "Transaction" (
-      "id"               TEXT              NOT NULL,
-      "userId"           TEXT              NOT NULL,
-      "incomeStreamId"   TEXT,
-      "virtualAccountId" TEXT,
-      "type"             "TransactionType" NOT NULL,
-      "amount"           DECIMAL(65,30)    NOT NULL,
-      "currency"         TEXT              NOT NULL DEFAULT 'NGN',
-      "description"      TEXT,
-      "status"           "TxStatus"        NOT NULL DEFAULT 'PENDING',
-      "metadata"         JSONB,
-      "createdAt"        TIMESTAMP(3)      NOT NULL DEFAULT CURRENT_TIMESTAMP,
-      "updatedAt"        TIMESTAMP(3)      NOT NULL,
+      "id"                 TEXT              NOT NULL,
+      "userId"             TEXT              NOT NULL,
+      "incomeStreamId"     TEXT,
+      "virtualAccountId"   TEXT,
+      "type"               "TransactionType" NOT NULL,
+      "amount"             DECIMAL(65,30)    NOT NULL,
+      "currency"           TEXT              NOT NULL DEFAULT 'NGN',
+      "description"        TEXT,
+      "status"             "TxStatus"        NOT NULL DEFAULT 'PENDING',
+      "metadata"           JSONB,
+      "sourceRef"          TEXT,
+      "counterpartyName"   TEXT,
+      "categoryLabel"      TEXT,
+      "categoryConfidence" DOUBLE PRECISION,
+      "aiReasoning"        TEXT,
+      "createdAt"          TIMESTAMP(3)      NOT NULL DEFAULT CURRENT_TIMESTAMP,
+      "updatedAt"          TIMESTAMP(3)      NOT NULL,
       CONSTRAINT "Transaction_pkey" PRIMARY KEY ("id")
     );
 
@@ -212,6 +217,7 @@ async function main() {
     CREATE UNIQUE INDEX "VirtualAccount_squadReference_key" ON "VirtualAccount"("squadReference");
     CREATE UNIQUE INDEX "VirtualAccount_accountNumber_key"  ON "VirtualAccount"("accountNumber");
     CREATE UNIQUE INDEX "WebhookInbox_eventId_key"          ON "WebhookInbox"("eventId");
+    CREATE UNIQUE INDEX "Transaction_sourceRef_key"         ON "Transaction"("sourceRef") WHERE "sourceRef" IS NOT NULL;
   `)
 
   // ── Foreign keys ──────────────────────────────────────────────────────────────

@@ -16,7 +16,15 @@ function Section({ title, children }: { title: string; children: React.ReactNode
   )
 }
 
-function Row({ label, value, action }: { label: string; value?: string; action?: React.ReactNode }) {
+function Row({
+  label,
+  value,
+  action,
+}: {
+  label: string
+  value?: string
+  action?: React.ReactNode
+}) {
   return (
     <div className="flex items-center justify-between px-5 py-4">
       <div>
@@ -35,7 +43,9 @@ export default async function SettingsPage() {
     <div className="mx-auto max-w-2xl space-y-10 px-4 py-10">
       <div>
         <h1 className="text-xl font-semibold tracking-tight text-[var(--fg)]">Settings</h1>
-        <p className="mt-1 text-sm text-[var(--fg-muted)]">Manage your account and income streams.</p>
+        <p className="mt-1 text-sm text-[var(--fg-muted)]">
+          Manage your account and income streams.
+        </p>
       </div>
 
       <Section title="Account">
@@ -52,10 +62,7 @@ export default async function SettingsPage() {
             </button>
           }
         />
-        <Row
-          label="Email"
-          value={session?.user?.email ?? '—'}
-        />
+        <Row label="Email" value={session?.user?.email ?? '—'} />
         <Row
           label="Password"
           value="••••••••••"
@@ -105,14 +112,20 @@ export default async function SettingsPage() {
           label="Anomaly alerts"
           value="Get notified when Kova flags an unusual transaction"
           action={
-            <div className="h-5 w-9 rounded-full bg-[var(--accent)] opacity-50 cursor-not-allowed" aria-label="Toggle (coming soon)" />
+            <div
+              className="h-5 w-9 rounded-full bg-[var(--accent)] opacity-50 cursor-not-allowed"
+              aria-label="Toggle (coming soon)"
+            />
           }
         />
         <Row
           label="Weekly summary"
           value="Receive a weekly profit snapshot across all streams"
           action={
-            <div className="h-5 w-9 rounded-full bg-[var(--border)] opacity-50 cursor-not-allowed" aria-label="Toggle (coming soon)" />
+            <div
+              className="h-5 w-9 rounded-full bg-[var(--border)] opacity-50 cursor-not-allowed"
+              aria-label="Toggle (coming soon)"
+            />
           }
         />
       </Section>

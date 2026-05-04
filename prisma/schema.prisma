@@ -59,21 +59,27 @@ model VirtualAccount {
 }
 
 model Transaction {
-  id               String          @id @default(cuid())
-  userId           String
-  incomeStreamId   String?
-  virtualAccountId String?
-  type             TransactionType
-  amount           Decimal
-  currency         String          @default("NGN")
-  description      String?
-  status           TxStatus        @default(PENDING)
-  metadata         Json?
-  createdAt        DateTime        @default(now())
-  updatedAt        DateTime        @updatedAt
-  user             User            @relation(fields: [userId], references: [id], onDelete: Cascade)
-  incomeStream     IncomeStream?   @relation(fields: [incomeStreamId], references: [id])
-  virtualAccount   VirtualAccount? @relation(fields: [virtualAccountId], references: [id])
+  id                 String          @id @default(cuid())
+  userId             String
+  incomeStreamId     String?
+  virtualAccountId   String?
+  type               TransactionType
+  amount             Decimal
+  currency           String          @default("NGN")
+  description        String?
+  status             TxStatus        @default(PENDING)
+  metadata           Json?
+  // Populated by the Week 2 worker after processing a webhook
+  sourceRef          String?         @unique // Squad transactionRef — dedup at transaction level
+  counterpartyName   String?
+  categoryLabel      String?         // e.g. "revenue", "stock_purchase"
+  categoryConfidence Float?          // 0.0 – 1.0
+  aiReasoning        String?
+  createdAt          DateTime        @default(now())
+  updatedAt          DateTime        @updatedAt
+  user               User            @relation(fields: [userId], references: [id], onDelete: Cascade)
+  incomeStream       IncomeStream?   @relation(fields: [incomeStreamId], references: [id])
+  virtualAccount     VirtualAccount? @relation(fields: [virtualAccountId], references: [id])
 }
 
 model Proposal {
@@ -131,6 +137,7 @@ enum AIActionType {
   SUGGEST_SAVINGS
   FORECAST
   SUMMARIZE
+  CATEGORIZE_TRANSACTION
 }
 
 enum AIStatus {

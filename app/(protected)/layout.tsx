@@ -41,7 +41,10 @@ export default async function ProtectedLayout({ children }: { children: React.Re
         <aside className="hidden md:flex w-60 shrink-0 flex-col border-r border-[var(--border)] bg-[var(--sidebar-bg)]">
           {/* Logo */}
           <div className="flex h-14 items-center border-b border-[var(--border)] px-5">
-            <Link href="/dashboard" className="text-base font-semibold tracking-tight text-[var(--fg)]">
+            <Link
+              href="/dashboard"
+              className="text-base font-semibold tracking-tight text-[var(--fg)]"
+            >
               Kova
             </Link>
           </div>
@@ -56,7 +59,9 @@ export default async function ProtectedLayout({ children }: { children: React.Re
                 {initials}
               </div>
               <div className="min-w-0 flex-1">
-                <p className="truncate text-xs font-medium text-[var(--fg)]">{session.user?.name}</p>
+                <p className="truncate text-xs font-medium text-[var(--fg)]">
+                  {session.user?.name}
+                </p>
                 <p className="truncate text-xs text-[var(--fg-muted)]">{session.user?.email}</p>
               </div>
               <ThemeToggle />
@@ -84,9 +89,7 @@ export default async function ProtectedLayout({ children }: { children: React.Re
           </div>
 
           {/* Scrollable page area */}
-          <main className="flex-1 overflow-y-auto">
-            {children}
-          </main>
+          <main className="flex-1 overflow-y-auto">{children}</main>
         </div>
       </div>
 

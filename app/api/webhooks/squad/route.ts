@@ -1,4 +1,5 @@
 import { prisma } from '@/lib/prisma'
+import { inflowsQueue } from '@/lib/queue'
 import { verifySquadSignature, extractEventId } from '@/lib/squad/webhook'
 import type { SquadWebhookEvent } from '@/lib/squad/webhook'
 
@@ -31,26 +32,24 @@ export async function POST(request: Request) {
     return new Response('Could not extract a stable event ID from payload', { status: 400 })
   }
 
+  let inboxId: string
   try {
-    await prisma.webhookInbox.create({
-      data: {
-        eventId,
-        provider: 'SQUAD',
-        payload: rawEvent,
-      },
+    const inbox = await prisma.webhookInbox.create({
+      data: { eventId, provider: 'SQUAD', payload: rawEvent },
     })
+    inboxId = inbox.id
   } catch (error: unknown) {
-    // A duplicate eventId means Squad is retrying an event we already received.
-    // Return 200 so Squad stops retrying — we're idempotent by design.
+    // Duplicate eventId — Squad is retrying an event we already received.
+    // Return 200 so Squad stops retrying — idempotent by design.
     if (isPrismaUniqueError(error)) {
       return new Response('OK', { status: 200 })
     }
     throw error
   }
 
-  // Respond fast — Squad expects acknowledgment within a few seconds.
-  // All real work (transaction creation, balance update, AI categorisation)
-  // happens in the Week 2 background worker, not here.
+  // Enqueue background processing — returns immediately, worker does the heavy lifting.
+  await inflowsQueue.add('processInflow', { inboxId, eventId })
+
   return new Response('OK', { status: 200 })
 }
 
