@@ -7,6 +7,14 @@ import { DashboardShell } from './components/DashboardShell'
 
 export const metadata: Metadata = { title: 'Dashboard' }
 
+function fmt(n: number) {
+  return new Intl.NumberFormat('en-NG', {
+    style: 'currency',
+    currency: 'NGN',
+    maximumFractionDigits: 0,
+  }).format(n)
+}
+
 function StatCard({
   label,
   value,
@@ -40,11 +48,19 @@ export default async function DashboardPage() {
 
   const userId = session.user.id
   const firstName = session.user.name?.split(' ')[0] ?? 'there'
+  const now = new Date()
+  const monthStart = new Date(now.getFullYear(), now.getMonth(), 1)
 
   const [streams, transactions, aiActions] = await Promise.all([
     prisma.incomeStream.findMany({
       where: { userId, isActive: true },
-      include: { virtualAccount: { select: { accountNumber: true, bankName: true } } },
+      include: {
+        virtualAccount: { select: { accountNumber: true, bankName: true } },
+        transactions: {
+          where: { status: 'COMPLETED' },
+          select: { type: true, amount: true, createdAt: true },
+        },
+      },
       orderBy: { createdAt: 'asc' },
     }),
     prisma.transaction.findMany({
@@ -59,6 +75,33 @@ export default async function DashboardPage() {
       take: 15,
     }),
   ])
+
+  // Per-stream stats for the live shell
+  const initialStats: Record<string, { revenue: number; expenses: number }> = {}
+  let totalRevenue = 0
+  let monthlyIncome = 0
+  let monthlyProfit = 0
+
+  for (const s of streams) {
+    const txs = s.transactions
+    const revenue = txs
+      .filter((t) => t.type === 'CREDIT')
+      .reduce((sum, t) => sum + Number(t.amount), 0)
+    const expenses = txs
+      .filter((t) => t.type === 'DEBIT')
+      .reduce((sum, t) => sum + Number(t.amount), 0)
+    const mRevenue = txs
+      .filter((t) => t.type === 'CREDIT' && t.createdAt >= monthStart)
+      .reduce((sum, t) => sum + Number(t.amount), 0)
+    const mExpenses = txs
+      .filter((t) => t.type === 'DEBIT' && t.createdAt >= monthStart)
+      .reduce((sum, t) => sum + Number(t.amount), 0)
+
+    initialStats[s.id] = { revenue, expenses }
+    totalRevenue += revenue
+    monthlyIncome += mRevenue
+    monthlyProfit += mRevenue - mExpenses
+  }
 
   return (
     <div className="mx-auto max-w-4xl space-y-8 px-4 py-8 md:px-6">
@@ -85,17 +128,29 @@ export default async function DashboardPage() {
         </form>
       </div>
 
-      {/* Stats row — balances populated in Week 3 */}
+      {/* Stats row */}
       <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
-        <StatCard label="Total balance" value="₦—" sub="across all streams" accent />
-        <StatCard label="This month's income" value="₦—" sub="all sources combined" />
-        <StatCard label="This month's profit" value="₦—" sub="revenue minus expenses" />
+        <StatCard
+          label="Total revenue"
+          value={totalRevenue > 0 ? fmt(totalRevenue) : '₦—'}
+          sub="across all streams"
+          accent
+        />
+        <StatCard
+          label="This month's income"
+          value={monthlyIncome > 0 ? fmt(monthlyIncome) : '₦—'}
+          sub="all sources combined"
+        />
+        <StatCard
+          label="This month's profit"
+          value={monthlyProfit > 0 ? fmt(monthlyProfit) : '₦—'}
+          sub="revenue minus expenses"
+        />
         <StatCard label="Active streams" value={String(streams.length)} sub="income sources" />
       </div>
 
-      {/* Live content — streams, transactions, smart feed */}
+      {/* Live shell — streams, transactions, smart feed */}
       <DashboardShell
-        userName={firstName}
         streams={streams.map((s) => ({
           id: s.id,
           name: s.name,
@@ -106,6 +161,8 @@ export default async function DashboardPage() {
         }))}
         initialTransactions={transactions.map((tx) => ({
           id: tx.id,
+          incomeStreamId: tx.incomeStreamId,
+          type: tx.type as 'CREDIT' | 'DEBIT' | 'TRANSFER',
           amount: Number(tx.amount),
           currency: tx.currency,
           description: tx.description,
@@ -116,9 +173,12 @@ export default async function DashboardPage() {
         }))}
         initialFeed={aiActions.map((a) => ({
           id: a.id,
+          type: a.type as string,
           prompt: a.prompt,
+          why: (a.result as { aiReasoning?: string } | null)?.aiReasoning ?? null,
           createdAt: a.createdAt.toISOString(),
         }))}
+        initialStats={initialStats}
       />
 
       {/* Ask Kova CTA */}

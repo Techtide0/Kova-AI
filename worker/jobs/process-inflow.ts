@@ -119,6 +119,8 @@ export async function processInflow({ inboxId, eventId }: InflowJobData): Promis
     kind: 'transaction.created',
     transaction: {
       id: transaction.id,
+      incomeStreamId: va.streamId,
+      type: 'CREDIT',
       amount: amountNaira,
       currency: 'NGN',
       description: transaction.description,
