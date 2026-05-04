@@ -14,12 +14,10 @@ export async function GET(request: Request) {
   const encoder = new TextEncoder()
 
   const stream = new ReadableStream({
-    start(controller) {
+    async start(controller) {
       const subscriber = createSubscriber()
 
-      subscriber.subscribe(`user:${userId}`)
-
-      subscriber.on('message', (_channel, message) => {
+      subscriber.on('message', (_channel: string, message: string) => {
         try {
           controller.enqueue(encoder.encode(`data: ${message}\n\n`))
         } catch {
@@ -27,7 +25,7 @@ export async function GET(request: Request) {
         }
       })
 
-      subscriber.on('error', (err) => {
+      subscriber.on('error', (err: Error) => {
         console.error('[stream] Redis subscriber error:', err.message)
         subscriber.disconnect()
         try {
@@ -42,7 +40,9 @@ export async function GET(request: Request) {
 
       // Clean up when the client disconnects.
       request.signal.addEventListener('abort', () => {
-        subscriber.unsubscribe()
+        subscriber.unsubscribe().catch(() => {
+          /* ignore on teardown */
+        })
         subscriber.disconnect()
         try {
           controller.close()
@@ -50,6 +50,9 @@ export async function GET(request: Request) {
           /* already closed */
         }
       })
+
+      // Subscribe after all listeners are in place to avoid missing messages.
+      await subscriber.subscribe(`user:${userId}`)
     },
   })
 

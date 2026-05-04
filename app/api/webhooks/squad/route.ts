@@ -44,11 +44,17 @@ export async function POST(request: Request) {
     if (isPrismaUniqueError(error)) {
       return new Response('OK', { status: 200 })
     }
-    throw error
+    console.error('[webhook] Failed to persist inbox for event', eventId)
+    return new Response('Internal error', { status: 500 })
   }
 
   // Enqueue background processing — returns immediately, worker does the heavy lifting.
-  await inflowsQueue.add('processInflow', { inboxId, eventId })
+  // If enqueue fails the inbox row survives and can be reprocessed manually.
+  try {
+    await inflowsQueue.add('processInflow', { inboxId, eventId })
+  } catch (err) {
+    console.error('[webhook] Failed to enqueue job for inbox', inboxId, (err as Error).message)
+  }
 
   return new Response('OK', { status: 200 })
 }

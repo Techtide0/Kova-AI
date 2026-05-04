@@ -6,7 +6,9 @@ const globalForRedis = global as unknown as { redis: Redis }
 
 function createRedis(): Redis {
   if (!process.env.REDIS_URL) throw new Error('REDIS_URL is not set')
-  return new Redis(process.env.REDIS_URL)
+  const r = new Redis(process.env.REDIS_URL)
+  r.on('error', (err) => console.error('[redis] Connection error:', err.message))
+  return r
 }
 
 export const redis = globalForRedis.redis ?? createRedis()
@@ -19,5 +21,7 @@ if (process.env.NODE_ENV !== 'production') {
 // in subscribe mode can't be reused for anything else.
 export function createSubscriber(): Redis {
   if (!process.env.REDIS_URL) throw new Error('REDIS_URL is not set')
-  return new Redis(process.env.REDIS_URL)
+  const sub = new Redis(process.env.REDIS_URL)
+  sub.on('error', (err) => console.error('[redis:subscriber] Connection error:', err.message))
+  return sub
 }

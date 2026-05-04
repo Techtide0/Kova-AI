@@ -33,8 +33,8 @@ interface Props {
   initialFeed: SmartFeedEntry[]
 }
 
-function formatNaira(amount: number) {
-  return new Intl.NumberFormat('en-NG', { style: 'currency', currency: 'NGN' }).format(amount)
+function formatAmount(amount: number, currency: string) {
+  return new Intl.NumberFormat('en-NG', { style: 'currency', currency }).format(amount)
 }
 
 function timeAgo(iso: string) {
@@ -86,15 +86,18 @@ export function DashboardShell({ userName, streams, initialTransactions, initial
           }
 
           if (data.kind === 'transaction.created' && data.transaction) {
-            setTransactions((prev) => [data.transaction!, ...prev])
-            setFeed((prev) => [
-              {
-                id: data.transaction!.id,
-                prompt: `Categorized ${formatNaira(data.transaction!.amount)} inflow into ${data.transaction!.streamName} as ${data.transaction!.categoryLabel ?? 'other'}`,
-                createdAt: data.transaction!.createdAt,
-              },
-              ...prev,
-            ])
+            const tx = data.transaction
+            setTransactions((prev) => [tx, ...prev].slice(0, 20))
+            setFeed((prev) =>
+              [
+                {
+                  id: tx.id,
+                  prompt: `Categorized ${formatAmount(tx.amount, tx.currency)} inflow into ${tx.streamName} as ${tx.categoryLabel ?? 'other'}`,
+                  createdAt: tx.createdAt,
+                },
+                ...prev,
+              ].slice(0, 15)
+            )
           }
         } catch {
           // Ignore parse errors (heartbeat comments from SSE)
@@ -190,12 +193,12 @@ export function DashboardShell({ userName, streams, initialTransactions, initial
                         <p className="truncate text-sm font-medium text-zinc-900">
                           {tx.streamName}
                         </p>
-                        <p className="truncate text-xs text-zinc-400">
+                        <p className="truncate text-xs text-zinc-400" suppressHydrationWarning>
                           {tx.categoryLabel ?? 'uncategorized'} · {timeAgo(tx.createdAt)}
                         </p>
                       </div>
                       <span className="ml-4 shrink-0 text-sm font-semibold text-green-600">
-                        +{formatNaira(tx.amount)}
+                        +{formatAmount(tx.amount, tx.currency)}
                       </span>
                     </li>
                   ))}
@@ -219,7 +222,9 @@ export function DashboardShell({ userName, streams, initialTransactions, initial
                   {feed.slice(0, 15).map((entry) => (
                     <li key={entry.id} className="px-4 py-3">
                       <p className="text-sm text-zinc-700">{entry.prompt}</p>
-                      <p className="mt-0.5 text-xs text-zinc-400">{timeAgo(entry.createdAt)}</p>
+                      <p className="mt-0.5 text-xs text-zinc-400" suppressHydrationWarning>
+                        {timeAgo(entry.createdAt)}
+                      </p>
                     </li>
                   ))}
                 </ul>

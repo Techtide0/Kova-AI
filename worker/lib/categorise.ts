@@ -91,11 +91,13 @@ export async function categorise(input: CategoriseInput): Promise<CategoriseResu
       confidence: number
       reasoning: string
     }
+    const rawConf = parsed.confidence
+    const conf = typeof rawConf === 'number' ? rawConf : Number(rawConf)
     return {
       categoryLabel: CATEGORIES.includes(parsed.category as (typeof CATEGORIES)[number])
         ? parsed.category
         : 'other',
-      categoryConfidence: Math.min(1, Math.max(0, parsed.confidence ?? 0.5)),
+      categoryConfidence: Math.min(1, Math.max(0, Number.isNaN(conf) ? 0.5 : conf)),
       aiReasoning: parsed.reasoning ?? '',
     }
   } catch {

@@ -49,3 +49,13 @@ worker.on('error', (err) => {
 })
 
 console.log('[worker] Started — listening for inflow jobs on queue "inflows"…')
+
+async function shutdown(signal: string) {
+  console.log(`[worker] ${signal} received — shutting down gracefully…`)
+  await worker.close()
+  connection.disconnect()
+  process.exit(0)
+}
+
+process.on('SIGTERM', () => void shutdown('SIGTERM'))
+process.on('SIGINT', () => void shutdown('SIGINT'))
