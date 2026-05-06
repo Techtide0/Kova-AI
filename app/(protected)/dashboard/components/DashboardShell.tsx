@@ -52,7 +52,9 @@ function fmt(n: number, currency = 'NGN') {
 }
 
 function timeAgo(iso: string) {
-  const diff = Date.now() - new Date(iso).getTime()
+  const ms = new Date(iso).getTime()
+  if (isNaN(ms)) return '—'
+  const diff = Date.now() - ms
   const mins = Math.floor(diff / 60000)
   if (mins < 1) return 'just now'
   if (mins < 60) return `${mins}m ago`
@@ -181,7 +183,7 @@ export function DashboardShell({ streams, initialTransactions, initialFeed, init
             const entry: SmartFeedEntry = {
               id: tx.id,
               type: 'CATEGORIZE_TRANSACTION',
-              prompt: `Categorised ${fmt(tx.amount, tx.currency)} inflow into ${tx.streamName} as ${tx.categoryLabel ?? 'other'}`,
+              prompt: `Categorised ${fmt(tx.amount, tx.currency)} ${tx.type === 'CREDIT' ? 'inflow' : 'outflow'} into ${tx.streamName} as ${tx.categoryLabel ?? 'other'}`,
               why: tx.aiReasoning,
               createdAt: tx.createdAt,
             }
@@ -317,7 +319,7 @@ export function DashboardShell({ streams, initialTransactions, initialFeed, init
                                 : 'text-foreground'
                           }`}
                         >
-                          {stats.revenue > 0 ? fmt(profit) : '₦—'}
+                          {stats.revenue > 0 || stats.expenses > 0 ? fmt(profit) : '₦—'}
                         </p>
                       </div>
                     </div>

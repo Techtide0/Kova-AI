@@ -16,6 +16,16 @@ export async function POST(req: Request) {
     return Response.json({ error: 'messages required' }, { status: 400 })
   }
 
+  const isValidMsg = (m: unknown): m is { role: 'user' | 'assistant'; content: string } =>
+    typeof m === 'object' &&
+    m !== null &&
+    ((m as { role?: unknown }).role === 'user' || (m as { role?: unknown }).role === 'assistant') &&
+    typeof (m as { content?: unknown }).content === 'string'
+
+  if (!messages.every(isValidMsg)) {
+    return Response.json({ error: 'invalid message format' }, { status: 400 })
+  }
+
   const userId = session.user.id
   const now = new Date()
   const monthStart = new Date(now.getFullYear(), now.getMonth(), 1)
@@ -105,7 +115,7 @@ Rules:
         })
 
         for await (const event of response) {
-          if (event.type === 'content_block_delta' && event.delta.type === 'text_delta') {
+          if (event.type === 'content_block_delta' && event.delta?.type === 'text_delta') {
             send({ type: 'token', content: event.delta.text })
           }
         }

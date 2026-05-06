@@ -51,30 +51,36 @@ export default async function DashboardPage() {
   const now = new Date()
   const monthStart = new Date(now.getFullYear(), now.getMonth(), 1)
 
-  const [streams, transactions, aiActions] = await Promise.all([
-    prisma.incomeStream.findMany({
-      where: { userId, isActive: true },
-      include: {
-        virtualAccount: { select: { accountNumber: true, bankName: true } },
-        transactions: {
-          where: { status: 'COMPLETED' },
-          select: { type: true, amount: true, createdAt: true },
+  let streams, transactions, aiActions
+  try {
+    ;[streams, transactions, aiActions] = await Promise.all([
+      prisma.incomeStream.findMany({
+        where: { userId, isActive: true },
+        include: {
+          virtualAccount: { select: { accountNumber: true, bankName: true } },
+          transactions: {
+            where: { status: 'COMPLETED' },
+            select: { type: true, amount: true, createdAt: true },
+          },
         },
-      },
-      orderBy: { createdAt: 'asc' },
-    }),
-    prisma.transaction.findMany({
-      where: { userId },
-      orderBy: { createdAt: 'desc' },
-      take: 20,
-      include: { incomeStream: { select: { name: true } } },
-    }),
-    prisma.aIAction.findMany({
-      where: { userId },
-      orderBy: { createdAt: 'desc' },
-      take: 15,
-    }),
-  ])
+        orderBy: { createdAt: 'asc' },
+      }),
+      prisma.transaction.findMany({
+        where: { userId },
+        orderBy: { createdAt: 'desc' },
+        take: 20,
+        include: { incomeStream: { select: { name: true } } },
+      }),
+      prisma.aIAction.findMany({
+        where: { userId },
+        orderBy: { createdAt: 'desc' },
+        take: 15,
+      }),
+    ])
+  } catch (err) {
+    console.error('[dashboard] Failed to fetch data:', err)
+    throw err
+  }
 
   // Per-stream stats for the live shell
   const initialStats: Record<string, { revenue: number; expenses: number }> = {}
@@ -143,7 +149,7 @@ export default async function DashboardPage() {
         />
         <StatCard
           label="This month's profit"
-          value={monthlyProfit > 0 ? fmt(monthlyProfit) : '₦—'}
+          value={monthlyIncome > 0 ? fmt(monthlyProfit) : '₦—'}
           sub="revenue minus expenses"
         />
         <StatCard label="Active streams" value={String(streams.length)} sub="income sources" />

@@ -44,7 +44,7 @@ export async function POST(request: Request) {
     if (isPrismaUniqueError(error)) {
       return new Response('OK', { status: 200 })
     }
-    console.error('[webhook] Failed to persist inbox for event', eventId)
+    console.error('[webhook] Failed to persist inbox for event', eventId, error)
     return new Response('Internal error', { status: 500 })
   }
 

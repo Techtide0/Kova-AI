@@ -52,7 +52,17 @@ export async function GET(request: Request) {
       })
 
       // Subscribe after all listeners are in place to avoid missing messages.
-      await subscriber.subscribe(`user:${userId}`)
+      try {
+        await subscriber.subscribe(`user:${userId}`)
+      } catch (err) {
+        console.error('[stream] Failed to subscribe:', err)
+        subscriber.disconnect()
+        try {
+          controller.close()
+        } catch {
+          /* already closed */
+        }
+      }
     },
   })
 

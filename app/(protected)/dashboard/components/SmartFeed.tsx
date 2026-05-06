@@ -24,7 +24,9 @@ const ICONS: Record<string, string> = {
 }
 
 function timeAgo(iso: string) {
-  const diff = Date.now() - new Date(iso).getTime()
+  const ms = new Date(iso).getTime()
+  if (isNaN(ms)) return '—'
+  const diff = Date.now() - ms
   const mins = Math.floor(diff / 60000)
   if (mins < 1) return 'just now'
   if (mins < 60) return `${mins}m ago`
@@ -102,7 +104,7 @@ export function SmartFeed({ feed, latestId }: { feed: SmartFeedEntry[]; latestId
 
   return (
     <div className="rounded-2xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 overflow-hidden">
-      <ul className="divide-y divide-zinc-100 dark:divide-zinc-800">
+      <ul className="divide-y divide-zinc-100 dark:divide-zinc-800" aria-live="polite">
         {feed.map((entry) => (
           <FeedItem key={entry.id} entry={entry} isNew={entry.id === latestId} />
         ))}

@@ -28,7 +28,8 @@ const SUGGESTED = [
 function KovaAvatar({ size = 8 }: { size?: number }) {
   return (
     <div
-      className={`flex h-${size} w-${size} shrink-0 items-center justify-center rounded-xl bg-[var(--accent)] text-xs font-bold text-[var(--accent-fg)]`}
+      style={{ height: `${size * 0.25}rem`, width: `${size * 0.25}rem` }}
+      className="flex shrink-0 items-center justify-center rounded-xl bg-[var(--accent)] text-xs font-bold text-[var(--accent-fg)]"
     >
       K
     </div>
@@ -144,47 +145,53 @@ export default function ChatPage() {
       const decoder = new TextDecoder()
       let buffer = ''
 
+      type StreamEvent =
+        | { type: 'tool'; message: string }
+        | { type: 'token'; content: string }
+        | { type: 'done' }
+        | { type: 'error'; message: string }
+
+      function processEvent(raw: string) {
+        if (!raw.trim()) return
+        try {
+          const event = JSON.parse(raw) as StreamEvent
+          if (event.type === 'tool') {
+            setToolMsg(event.message)
+          } else if (event.type === 'token') {
+            setToolMsg(null)
+            setMessages((prev) =>
+              prev.map((m) =>
+                m.id === assistantId ? { ...m, content: m.content + event.content } : m
+              )
+            )
+          } else if (event.type === 'done') {
+            setMessages((prev) =>
+              prev.map((m) => (m.id === assistantId ? { ...m, streaming: false } : m))
+            )
+          } else if (event.type === 'error') {
+            setMessages((prev) =>
+              prev.map((m) =>
+                m.id === assistantId ? { ...m, content: event.message, streaming: false } : m
+              )
+            )
+          }
+        } catch {
+          // skip malformed line
+        }
+      }
+
       while (true) {
         const { done, value } = await reader.read()
-        if (done) break
+        if (done) {
+          // Flush any data remaining in the buffer when the stream closes
+          processEvent(buffer)
+          break
+        }
 
         buffer += decoder.decode(value, { stream: true })
         const lines = buffer.split('\n')
         buffer = lines.pop() ?? ''
-
-        for (const line of lines) {
-          if (!line.trim()) continue
-          try {
-            const event = JSON.parse(line) as
-              | { type: 'tool'; message: string }
-              | { type: 'token'; content: string }
-              | { type: 'done' }
-              | { type: 'error'; message: string }
-
-            if (event.type === 'tool') {
-              setToolMsg(event.message)
-            } else if (event.type === 'token') {
-              setToolMsg(null)
-              setMessages((prev) =>
-                prev.map((m) =>
-                  m.id === assistantId ? { ...m, content: m.content + event.content } : m
-                )
-              )
-            } else if (event.type === 'done') {
-              setMessages((prev) =>
-                prev.map((m) => (m.id === assistantId ? { ...m, streaming: false } : m))
-              )
-            } else if (event.type === 'error') {
-              setMessages((prev) =>
-                prev.map((m) =>
-                  m.id === assistantId ? { ...m, content: event.message, streaming: false } : m
-                )
-              )
-            }
-          } catch {
-            // skip malformed line
-          }
-        }
+        for (const line of lines) processEvent(line)
       }
     } catch (err) {
       console.error('[chat] fetch error:', err)
@@ -268,6 +275,7 @@ export default function ChatPage() {
             }}
             onKeyDown={handleKeyDown}
             placeholder="Ask about your money…"
+            aria-label="Message input"
             disabled={streaming}
             className="flex-1 resize-none rounded-xl border border-[var(--border)] bg-[var(--bg-subtle)] px-4 py-3 text-sm text-[var(--fg)] placeholder-[var(--fg-placeholder)] transition-colors focus:border-[var(--accent)] focus:outline-none focus:ring-1 focus:ring-[var(--accent)] disabled:opacity-50"
           />

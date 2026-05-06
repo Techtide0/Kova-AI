@@ -87,10 +87,10 @@ export function ProfitChart({ data }: { data: DayPoint[] }) {
     (v, i, a) => a.indexOf(v) === i
   )
 
-  // X-axis labels: first, middle, last
+  // X-axis labels: first, middle, last (skip last when n === 1 to avoid duplicate)
   const xLabels: { i: number; label: string }[] = [{ i: 0, label: data[0].date }]
   if (n > 2) xLabels.push({ i: Math.floor((n - 1) / 2), label: data[Math.floor((n - 1) / 2)].date })
-  xLabels.push({ i: n - 1, label: data[n - 1].date })
+  if (n > 1) xLabels.push({ i: n - 1, label: data[n - 1].date })
 
   // Compute path length for animation (approximate: sum of segment lengths)
   let pathLen = 0

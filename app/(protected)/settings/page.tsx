@@ -1,9 +1,10 @@
 import type { Metadata } from 'next'
+import type { ReactNode } from 'react'
 import { auth, signOut } from '@/auth'
 
 export const metadata: Metadata = { title: 'Settings' }
 
-function Section({ title, children }: { title: string; children: React.ReactNode }) {
+function Section({ title, children }: { title: string; children: ReactNode }) {
   return (
     <section className="space-y-4">
       <h2 className="text-sm font-semibold uppercase tracking-widest text-[var(--fg-muted)]">
@@ -16,15 +17,7 @@ function Section({ title, children }: { title: string; children: React.ReactNode
   )
 }
 
-function Row({
-  label,
-  value,
-  action,
-}: {
-  label: string
-  value?: string
-  action?: React.ReactNode
-}) {
+function Row({ label, value, action }: { label: string; value?: string; action?: ReactNode }) {
   return (
     <div className="flex items-center justify-between px-5 py-4">
       <div>
@@ -81,7 +74,7 @@ export default async function SettingsPage() {
       <Section title="Income Streams">
         <Row
           label="Manage streams"
-          value="Add, rename, or remove your income sources"
+          value="Add or remove your income sources"
           action={
             <button
               disabled

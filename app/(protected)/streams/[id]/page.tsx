@@ -38,12 +38,13 @@ function timeAgo(d: Date) {
 function buildChartData(
   txs: { type: string; amount: bigint | number | string; createdAt: Date }[]
 ): DayPoint[] {
-  const byDate = new Map<string, { revenue: number; expenses: number }>()
+  // Use YYYY-MM-DD as the map key to avoid collisions across years
+  const byDate = new Map<string, { date: string; revenue: number; expenses: number }>()
 
   const sorted = [...txs].sort((a, b) => a.createdAt.getTime() - b.createdAt.getTime())
   for (const tx of sorted) {
-    const key = fmtDateShort(tx.createdAt)
-    const curr = byDate.get(key) ?? { revenue: 0, expenses: 0 }
+    const key = tx.createdAt.toISOString().slice(0, 10)
+    const curr = byDate.get(key) ?? { date: fmtDateShort(tx.createdAt), revenue: 0, expenses: 0 }
     const amt = Number(tx.amount)
     if (tx.type === 'CREDIT') curr.revenue += amt
     else if (tx.type === 'DEBIT') curr.expenses += amt
@@ -52,7 +53,7 @@ function buildChartData(
 
   let cumulative = 0
   const points: DayPoint[] = []
-  for (const [date, { revenue, expenses }] of byDate) {
+  for (const [, { date, revenue, expenses }] of byDate) {
     cumulative += revenue - expenses
     points.push({ date, revenue, expenses, cumulative })
   }
@@ -66,8 +67,12 @@ export async function generateMetadata({
 }: {
   params: Promise<{ id: string }>
 }): Promise<Metadata> {
-  const { id } = await params
-  const stream = await prisma.incomeStream.findUnique({ where: { id }, select: { name: true } })
+  const [{ id }, session] = await Promise.all([params, auth()])
+  if (!session?.user?.id) return { title: 'Stream Detail' }
+  const stream = await prisma.incomeStream.findUnique({
+    where: { id, userId: session.user.id },
+    select: { name: true },
+  })
   return { title: stream?.name ?? 'Stream Detail' }
 }
 
@@ -94,7 +99,8 @@ export default async function StreamDetailPage({ params }: { params: Promise<{ i
   const revenue = txs.filter((t) => t.type === 'CREDIT').reduce((s, t) => s + Number(t.amount), 0)
   const expenses = txs.filter((t) => t.type === 'DEBIT').reduce((s, t) => s + Number(t.amount), 0)
   const profit = revenue - expenses
-  const avgTx = txs.length > 0 ? revenue / txs.filter((t) => t.type === 'CREDIT').length : 0
+  const creditCount = txs.filter((t) => t.type === 'CREDIT').length
+  const avgTx = creditCount > 0 ? revenue / creditCount : 0
 
   // Top category
   const catCounts: Record<string, number> = {}
@@ -107,8 +113,7 @@ export default async function StreamDetailPage({ params }: { params: Promise<{ i
   const chartData = buildChartData(
     txs.map((t) => ({ type: t.type as string, amount: Number(t.amount), createdAt: t.createdAt }))
   )
-  // Chart expects ascending order
-  chartData.reverse()
+  // buildChartData already returns ascending order — no reversal needed
 
   const KIND_EMOJI: Record<string, string> = { BUSINESS: '🏪', SALARY: '💼' }
 
