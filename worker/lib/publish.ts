@@ -8,6 +8,9 @@ function getPublisher(): Redis {
   if (!publisher) {
     if (!process.env.REDIS_URL) throw new Error('REDIS_URL is not set')
     publisher = new Redis(process.env.REDIS_URL)
+    publisher.on('error', (err) =>
+      console.error('[redis:publisher] Connection error:', err.message)
+    )
   }
   return publisher
 }

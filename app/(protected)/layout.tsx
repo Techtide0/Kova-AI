@@ -3,6 +3,7 @@ import Link from 'next/link'
 import { auth, signOut } from '@/auth'
 import { ThemeToggle } from '@/app/_components/theme-toggle'
 import { SidebarNav, MobileNav } from '@/app/_components/sidebar-nav'
+import { ClientProviders } from './layout-client'
 
 export default async function ProtectedLayout({ children }: { children: React.ReactNode }) {
   const session = await auth()
@@ -89,7 +90,9 @@ export default async function ProtectedLayout({ children }: { children: React.Re
           </div>
 
           {/* Scrollable page area */}
-          <main className="flex-1 overflow-y-auto">{children}</main>
+          <main className="flex-1 overflow-y-auto">
+            <ClientProviders>{children}</ClientProviders>
+          </main>
         </div>
       </div>
 

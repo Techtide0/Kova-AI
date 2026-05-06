@@ -128,7 +128,8 @@ export async function POST(request: Request) {
         { status: 502 }
       )
     }
-    throw error
+    console.error('[onboarding/confirm] Unexpected error during virtual account creation')
+    return Response.json({ error: 'An unexpected error occurred' }, { status: 500 })
   }
 
   // Phase 2 — All Squad calls succeeded. Write everything to the database atomically.

@@ -62,50 +62,65 @@ export async function processInflow({ inboxId, eventId }: InflowJobData): Promis
   })
 
   // Write transaction + smart-feed entry + mark inbox processed atomically.
+  // The sourceRef unique constraint is the final dedup guard against TOCTOU races
+  // where two workers both pass the inbox.processed check before either commits.
   type Tx = Parameters<Parameters<typeof prisma.$transaction>[0]>[0]
 
-  const transaction = await prisma.$transaction(
-    async (tx: Tx) => {
-      const t = await tx.transaction.create({
-        data: {
-          userId: va.stream.userId,
-          incomeStreamId: va.streamId,
-          virtualAccountId: va.id,
-          type: 'CREDIT',
-          amount: amountNaira,
-          currency: 'NGN',
-          description: body.transactionRef,
-          status: 'COMPLETED',
-          sourceRef: eventId,
-          counterpartyName: body.customerName,
-          categoryLabel,
-          categoryConfidence,
-          aiReasoning,
-        },
-      })
+  let transaction
+  try {
+    transaction = await prisma.$transaction(
+      async (tx: Tx) => {
+        const t = await tx.transaction.create({
+          data: {
+            userId: va.stream.userId,
+            incomeStreamId: va.streamId,
+            virtualAccountId: va.id,
+            type: 'CREDIT',
+            amount: amountNaira,
+            currency: 'NGN',
+            description: body.transactionRef,
+            status: 'COMPLETED',
+            sourceRef: eventId,
+            counterpartyName: body.customerName,
+            categoryLabel,
+            categoryConfidence,
+            aiReasoning,
+          },
+        })
 
-      await tx.aIAction.create({
-        data: {
-          userId: va.stream.userId,
-          type: 'CATEGORIZE_TRANSACTION',
-          prompt: `Categorized inflow of ₦${amountNaira.toLocaleString('en-NG')} into ${va.stream.name}`,
-          result: { transactionId: t.id, categoryLabel, categoryConfidence, aiReasoning },
-          status: 'COMPLETED',
-        },
-      })
+        await tx.aIAction.create({
+          data: {
+            userId: va.stream.userId,
+            type: 'CATEGORIZE_TRANSACTION',
+            prompt: `Categorized inflow of ₦${amountNaira.toLocaleString('en-NG')} into ${va.stream.name}`,
+            result: { transactionId: t.id, categoryLabel, categoryConfidence, aiReasoning },
+            status: 'COMPLETED',
+          },
+        })
 
-      await tx.webhookInbox.update({ where: { id: inboxId }, data: { processed: true } })
+        await tx.webhookInbox.update({ where: { id: inboxId }, data: { processed: true } })
 
-      return t
-    },
-    { maxWait: 10000, timeout: 20000 }
-  )
+        return t
+      },
+      { maxWait: 10000, timeout: 20000 }
+    )
+  } catch (error) {
+    if (isPrismaUniqueError(error)) {
+      console.log(`[processInflow] Duplicate transaction for event ${eventId} — skipping`)
+      return
+    }
+    throw error
+  }
+
+  if (!transaction) return
 
   // Push live update to the user's dashboard via Redis pub/sub.
   await publishToUser(va.stream.userId, {
     kind: 'transaction.created',
     transaction: {
       id: transaction.id,
+      incomeStreamId: va.streamId,
+      type: 'CREDIT',
       amount: amountNaira,
       currency: 'NGN',
       description: transaction.description,
@@ -118,5 +133,14 @@ export async function processInflow({ inboxId, eventId }: InflowJobData): Promis
 
   console.log(
     `[processInflow] ✔ tx ${transaction.id} | ₦${amountNaira} | ${va.stream.name} | ${categoryLabel}`
+  )
+}
+
+function isPrismaUniqueError(error: unknown): boolean {
+  return (
+    typeof error === 'object' &&
+    error !== null &&
+    'code' in error &&
+    (error as { code: string }).code === 'P2002'
   )
 }
