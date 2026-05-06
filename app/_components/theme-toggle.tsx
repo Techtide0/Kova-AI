@@ -3,10 +3,8 @@
 import { useState } from 'react'
 
 export function ThemeToggle() {
-  // Lazy initializer reads the DOM once on mount — avoids a useEffect + setState cascade.
-  // Falls back to false during SSR where document is not available.
-  const [dark, setDark] = useState<boolean>(
-    () => typeof document !== 'undefined' && document.documentElement.classList.contains('dark')
+  const [dark, setDark] = useState(() =>
+    typeof document !== 'undefined' ? document.documentElement.classList.contains('dark') : false
   )
 
   function toggle() {

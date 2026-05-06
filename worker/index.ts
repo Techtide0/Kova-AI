@@ -45,7 +45,7 @@ worker.on('failed', (job, err) => {
 })
 
 worker.on('error', (err) => {
-  console.error('[worker] Worker error:', err.message)
+  console.error('[worker] Worker error:', err instanceof Error ? err.stack : err)
 })
 
 console.log('[worker] Started — listening for inflow jobs on queue "inflows"…')
